@@ -6,6 +6,7 @@ Made by Jere Niemi :))
 
 # Imports
 from tkinter import *
+from tkinter.ttk import Progressbar, Style
 from customtkinter import *
 import cvzone
 import cv2
@@ -19,6 +20,9 @@ import random
 import asyncio
 import psutil
 import decouple
+import pygame
+
+pygame.mixer.init()
 
 CAMERA = decouple.config("CAMERA")
 
@@ -32,6 +36,7 @@ CLASS_NAMES = ["person","bicycle","car","motorbike","aeroplane","bus","train","t
                "toilet","tvmonitor","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink",
                "refrigerator","book","clock","vase","scissors","teddy bear","hair dier","toothbrush"]
 
+
 # ?
 """
 BOX_DATA = list()
@@ -43,6 +48,7 @@ def add_to_data(box):
         BOX_DATA.pop(0)
 
 """
+
 class MainWindow(CTk):
     def __init__(self):
         super().__init__()
@@ -50,6 +56,9 @@ class MainWindow(CTk):
         self.geometry("1920x1080")
         self.bind("<F11>", self.fullscreen)
         self.bind("<Escape>", self.windowed)
+        self.bind("<space>", self.analysis_screen)
+        self.bind("<+>", self.increment_counter)
+        self.bind("<j>", lambda event:self.analysis_screen(5))
 
         self._top_bar = CTkFrame(self, width=1920, height=100)
         self._top_bar.grid(row=0, column=0)
@@ -67,7 +76,7 @@ class MainWindow(CTk):
         self.radar_info2 = RadarInfoRight(master=self)
         self.radar_info2.grid(row=1, column=3, columnspan=2, sticky=E, padx=15)
 
-
+        self.counter = 0
 
         self.radar = Radar(master=self, width=1280, height=720, radar_info1=self.radar_info, radar_info2=self.radar_info2)
         self.radar.grid(row=1, column=2, padx=0, pady=50)
@@ -77,7 +86,7 @@ class MainWindow(CTk):
 
         self.mainloop()
 
-    def fullscreen(self, event=None):
+    def fullscreen(self, event=None): 
         """ F11 key to fullscreen """
         
         self.attributes("-fullscreen", True)
@@ -87,6 +96,99 @@ class MainWindow(CTk):
         """ Esc key to windowed mode """
         self.attributes("-fullscreen", False)
         return "break"
+
+    def analysis_screen(self, event=None):
+        """ Space key to "analyse" movement """
+        if event != 5:
+            AnalysisScreen(self.counter)
+            self.counter += 1
+
+            if self.counter > 4:
+                self.counter = 0
+        else:
+            AnalysisScreen(5)
+
+    def increment_counter(self):
+        """ Increments the self.counter """
+        self.counter += 1
+        if self.counter > 4:
+            self.counter = 0
+
+IMAGES = [ "ville.jpg", "sanna.jpg", "selanne.jpg", "petteri.jpg", "tommi.jpg", "idiootit.jpeg" ]    
+
+class AnalysisScreen(CTkToplevel):
+    def __init__(self, number):
+        super().__init__()
+        self.number = number
+        self.load_time = 20
+        self.title("Analyzing...")
+        self.geometry("700x300")
+        self.grab_set()
+        self.after(20, self.loop)
+        
+
+    def loop(self):
+        start = time.time()
+        theme = Style()
+        theme.theme_use("winnative")
+        theme.configure("green.Horizontal.TProgressbar", background="green")
+        self.load_txt = CTkLabel(self, text="Analyzing movement...", font=("Teko", 42))
+        self.load_txt.pack(pady=20)
+
+        self.bar = Progressbar(self, style="green.Horizontal.TProgressbar", orient="horizontal", mode="indeterminate", length=600, )
+        self.bar.pack(pady=20)
+        self.portion_txt = CTkLabel(self, text="0%", font=("Teko", 32))
+        self.portion_txt.pack(pady=20)
+
+        
+
+        while time.time() - start < 20:
+            
+            portion = round((time.time() - start)*100/20,1)
+            self.bar["value"] += 1
+            self.update_idletasks()
+            time.sleep(0.01)
+            self.portion_txt.configure(text=f"{portion}%")
+
+            self.update()    
+        self.show_analysis()
+        
+
+    def show_analysis(self):
+        self.title("Match found!")
+        self.geometry("1000x700")
+        self.load_txt.destroy()
+        self.bar.destroy()
+        self.portion_txt.destroy()
+
+        pygame.mixer.music.load("res/dingding.mp3")
+        pygame.mixer.music.play(loops=0)
+
+        self.top_title = CTkLabel(self, text="Match Found!", font=("Arial", 42))
+        self.top_title.pack(pady=20)
+
+        logo = Image.open(f"img/{IMAGES[self.number]}").resize((900, 600), Image.LANCZOS)
+        image = ImageTk.PhotoImage(logo)
+        self.image_label = CTkLabel(self, text="", image=image)
+        self.image_label.pack()
+        
+        if self.number == 0:
+            name = "Ville Merinen"
+        elif self.number == 1:
+            name = "Sanna Marin"
+        elif self.number == 2:
+            name = "Teemu Selänne"
+        elif self.number == 3:
+            name = "Petteri Orpo"
+        elif self.number == 4:
+            name = "Tommi Evilä"
+        else:
+            name = "Sähkökillan Jäynämestarit!"
+
+        self.top_title = CTkLabel(self, text=f"Match: {name}, {random.randint(90,100)}%", font=("Arial", 42))
+        self.top_title.pack(pady=20)
+
+
 
 
 class RadarInfoLeft(CTkFrame):
